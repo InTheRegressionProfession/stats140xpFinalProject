@@ -1,0 +1,214 @@
+---
+title: "final_project"
+author: "Sebastian Rivera-Chepetla"
+date: "2023-03-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Analysis of numerical predictors first.
+
+Correlation Matrix of numerical predictors & p-values for their correlations:    
+
+```{R}
+#install.packages("Hmisc")
+library("Hmisc")
+
+spotify = read.csv("songs_normalize 2.csv")
+# there are 36 Missing Values:
+sum(is.na(spotify))
+View(spotify)
+
+# correlation matrix of numerical predictors
+#corr_matrix
+num_cols = unlist(lapply(spotify, is.numeric))
+View(spotify[,num_cols])
+cor(spotify[,num_cols])
+```
+
+The function rcorr() [in Hmisc package] can be used to compute the significance levels for pearson and spearman correlations. It returns both the correlation coefficients and the p-value of the correlation for all possible pairs of columns in the data table.
+
+```{R}
+res2 = rcorr(as.matrix(spotify[,num_cols]))
+res2
+```
+
+# The  matrix; m_mod contains all significant correlations between numerical predictors.   
+
+```{R}
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+res2 =rcorr(as.matrix(spotify[,num_cols]))
+matrix_df = flattenCorrMatrix(res2$r, res2$P)
+m_mod = matrix_df[matrix_df$p<0.05,]
+r = m_mod$row=="popularity"
+c = m_mod$column=="popularity"
+# matrix mod contains all significant correlations between numerical predictors
+View(m_mod)
+```
+
+Not many numerical predictors seem to be significantly correlated with 'popularity'    
+
+The following are all that are significantly correlated with popularity:    
+
+```{R}
+m_mod[r,]
+```
+
+```{R}
+m_mod[c,]
+```
+Scatterplot of "instrumentalness" and "duration_ms"
+
+```{R}
+plot(x=spotify$instrumentalness,y=spotify$duration_ms)
+```
+
+The only numerical variables that have significant correlations (very weak corr) with our dependent variable 'popularity' are 'instrumentalness' and 'duration_ms'. Since the correlation between instrumentallness and duration_ms was not included in the 'm_mod' matrix, we know that these two potential predictors for popularity are safe to use in a regression setting.  
+
+
+```{R}
+plot(x=spotify$popularity,y=spotify$instrumentalness)
+plot(x=spotify$popularity,y=spotify$duration)
+```
+
+There is some noticeable clustering on the right and left ends of both scatter-plots, not entirely sure the source of this behavior (if we can find what causes this we could possibly generate new features depending on what we find), but the trends are very weak from a visual inspection.
+
+
+
+Turning all non-numeric variables to factors for easier use:   
+
+```{R}
+spotify[,!num_cols] = as.data.frame(lapply(spotify[,!num_cols], as.factor))
+spotify_cat = spotify[,!num_cols]
+spotify_numeric = spotify[,num_cols]
+View(spotify_cat)
+View(spotify_numeric)
+```
+
+# Analsysis of Categorical Predictors:    
+
+
+1. mean populartiry separated by explicit status (yes or no):
+
+```{R}
+yes_explicit = spotify[as.logical(spotify$explicit),]
+no_explicit  = spotify[!as.logical(spotify$explicit),]
+cat("Explicit:",mean(yes_explicit$danceability),"",
+    "Not Exlicit:",mean(no_explicit$danceability),"\n")
+```
+
+Q: significant difference in means or not?
+
+```{R}
+t.test(yes_explicit$danceability,no_explicit$danceability) # assuming unequal variances cause its safer
+```
+
+Despite what past code showed, the difference in mean popularity between explicit and non-explicit songs is actually significant, albeit close to being not significant which may indicate that the difference is not practically significant? 
+
+# multiple boxplots split by explicit:
+
+```{R}
+#install.packages("ggplot2")
+library("ggplot2")
+ggplot(spotify, aes(x = explicit, y = danceability)) +
+  geom_boxplot()
+```
+
+# Density Plots separated by artist type:    
+
+```{R}
+ggplot(spotify, aes(x = danceability, colour = explicit)) +
+  geom_density()
+```
+
+
+Thus, the explicit predictor may not be that useful in predicting popularity.
+
+
+*** Cluserting may or may nto be hepful in determining useful grpupings that are associated with higher/lower mean popularities: ***
+
+Running k-means clustering on numerical predictors:
+
+```{R}
+# Installing Packages
+#install.packages("ClusterR")
+#install.packages("cluster")
+  
+# Loading package
+library(ClusterR)
+library(cluster)
+
+set.seed(005408206) # Setting seed
+kmeans.re = kmeans(spotify_numeric, centers = 3, nstart = 10)
+kmeans.re
+```
+
+A quick look at our results above shows that cluster 1 has the highest mean popularity of the 3 clusters, and its mean duration is also the largest across all 3 clusters, further supports the hypothesis that loinger songs may be more popular.
+
+
+# Other Potential Ideas for Exploration: using genre as a blocking factor (and predictor):  
+
+** Current variable has WAY too many levels, may be helpful to first start by grouping into broader categories. A quick look at the genre column reveals plenty of hip hop, pop, rock,rap, and other genres, yet many songs include several types of genres, how we form larger clusters of genres may affect how useful our new predictor for genre is for predicting popularity and thus would be worth investigating further. ** 
+
+```{R}
+length(levels(spotify$genre))
+```
+
+```{R}
+anova = aov(danceability~.,data = spotify_numeric)
+summary(anova)
+```
+
+### IGNORE ##
+
+
+```{R,run=FALSE}
+genre = function(str){
+  if(grepl("hip hop",tolower(str))){
+    return("hiphop")
+  }else if(grepl("rap",tolower(str))){
+    return("rap")
+  }else if(grepl("rock",tolower(str))){
+    return("rock")
+  }else if(grepl("pop",tolower(str))){
+    return("pop")
+  }else{
+    return("other")
+  }
+}
+genre = vapply(spotify$top.genre,FUN=genre,FUN.VALUE = character(1))
+spotify$genre = as.factor(genre)
+```
+
+
+# multiple boxplots of artist type:      
+
+```{R,run=FALSE}
+#install.packages("ggplot2")
+library("ggplot2")
+ggplot(spotify, aes(x = genre, y = pop)) +
+  geom_boxplot()
+```
+
+Insights: Boxplots indicate slight, but still noticeable differences across genre type.
+
+# Density Plots separated by artist type:    
+
+```{R,run=FALSE}
+ggplot(spotify, aes(x = pop, colour = genre)) +
+  geom_density()
+```
+
+
+
