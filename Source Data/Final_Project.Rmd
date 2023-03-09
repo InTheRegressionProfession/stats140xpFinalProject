@@ -18,12 +18,10 @@ Correlation Matrix of numerical predictors & p-values for their correlations:
 library("Hmisc")
 
 spotify = read.csv("songs_normalize 2.csv")
-# there are 36 Missing Values:
 sum(is.na(spotify))
 View(spotify)
 
 # correlation matrix of numerical predictors
-#corr_matrix
 num_cols = unlist(lapply(spotify, is.numeric))
 View(spotify[,num_cols])
 cor(spotify[,num_cols])
@@ -36,7 +34,21 @@ res2 = rcorr(as.matrix(spotify[,num_cols]))
 res2
 ```
 
-# The  matrix; m_mod contains all significant correlations between numerical predictors.   
+# ANOVA:   
+
+```{R}
+anova = aov(danceability~.,data = spotify_numeric)
+summary(anova)
+```
+
+```{R}
+anova = aov(danceability~.-artist-year-song-artist,data = spotify)
+summary(anova)
+```
+
+'duration_ms','energy', 'loudness','mode','speechiness','acousticness','instrumentalness','liveness','valence','tempo' are signficant. However,'loudness' and 'instrumentalness' appear to be weak predictors. 
+
+# The  matrix {m_mod} contains all significant correlations between numerical predictors.   
 
 ```{R}
 flattenCorrMatrix <- function(cormat, pmat) {
@@ -51,15 +63,15 @@ flattenCorrMatrix <- function(cormat, pmat) {
 res2 =rcorr(as.matrix(spotify[,num_cols]))
 matrix_df = flattenCorrMatrix(res2$r, res2$P)
 m_mod = matrix_df[matrix_df$p<0.05,]
-r = m_mod$row=="popularity"
-c = m_mod$column=="popularity"
+r = m_mod$row=="danceability"
+c = m_mod$column=="danceability"
 # matrix mod contains all significant correlations between numerical predictors
 View(m_mod)
 ```
 
-Not many numerical predictors seem to be significantly correlated with 'popularity'    
+Many numerical predictors seem to be significantly correlated with 'danceability'    
 
-The following are all that are significantly correlated with popularity:    
+The following are all that are significantly correlated with 'danceability':    
 
 ```{R}
 m_mod[r,]
@@ -68,25 +80,60 @@ m_mod[r,]
 ```{R}
 m_mod[c,]
 ```
-Scatterplot of "instrumentalness" and "duration_ms"
+
+The numerical predictor that are significantly correlated with danceability are: 'energy', 'mode', 'speechiness', 'acousticness', 'liveness', 'valence', 'tempo', 'danceability'. But the ones that are the the highest correlated with danceability are valence (0.40), and speechiness (~0.15). Compared to the results of our anova, which had all the same ones as significant predictors with the addition of 'loudness', and 'instrumentalness'. However, it is important to note that both of these additional predictors are just barely significant and their respective contributions are minimal (MeanSq 0.075 and 0.073 respectively indicating that they only help explain only a small portion of the variance)
+
+Also, of these predictors, we need to check if they are correlated among themselves because that may introduce issues with multicollinearity.    
 
 ```{R}
-plot(x=spotify$instrumentalness,y=spotify$duration_ms)
+res3 =rcorr(as.matrix(spotify[,c("energy", "mode", "speechiness", "acousticness", "liveness", "valence", "tempo")]))
+matrix_df2 = flattenCorrMatrix(res3$r, res3$P)
+m_mod2 = (matrix_df2[matrix_df2$p<0.05,])
+r2 = m_mod2$row=="valence"
+c2 = m_mod2$column=="valence"
+r2.2 = m_mod2$row=="speechiness"
+c2.2 = m_mod2$column == "speechiness"
 ```
 
-The only numerical variables that have significant correlations (very weak corr) with our dependent variable 'popularity' are 'instrumentalness' and 'duration_ms'. Since the correlation between instrumentallness and duration_ms was not included in the 'm_mod' matrix, we know that these two potential predictors for popularity are safe to use in a regression setting.  
+As we can see, plenty of these numerical predictors are significantly correlated with each other, which can negatively impact their use in a model. However, we will now shift our focus to valence and liveness since they seemed to be the only potential relevant numerical predictors:    
+
+```{R}
+m_mod2[r2,]
+m_mod2[c2,]
+```
+
+
+As we can see, 'speechiness' and 'valence' are significantly correlated with each other, yet their correlation is only about 0.07, thus, it may still be worth to consider using them. furthermore, valence is significantly correlated with 'energy', 'mode', and 'acousticness' with correlations of 0.3344,-0.0746 respectively.     
+
+```{R}
+m_mod2[r2.2,]
+m_mod2[c2.2,]
+```
+
+Also, from the output above, 'speechiness' is significantly correlated with 'liveness', 'valence','tempo', albeit, very weakly correlated.       
+
+Scatterplot between valence & danceability:         
+
+```{R}
+plot(x=spotify$valence,y=spotify$danceability)
+```
+
+Scatterplot between speechiness & danceability:    
+
+```{R}
+plot(x=spotify$speechiness,y=spotify$danceability)
+```
 
 
 ```{R}
-plot(x=spotify$popularity,y=spotify$instrumentalness)
-plot(x=spotify$popularity,y=spotify$duration)
+plot(x=spotify$danceability,y=spotify$valence)
+plot(x=spotify$danceability,y=spotify$speechiness)
 ```
 
-There is some noticeable clustering on the right and left ends of both scatter-plots, not entirely sure the source of this behavior (if we can find what causes this we could possibly generate new features depending on what we find), but the trends are very weak from a visual inspection.
+There is some noticeable clustering on the right and left ends of both scatter-plots, not entirely sure the source of this behavior (if we can find what causes this we could possibly generate new features depending on what we find), but the trends are very weak from a visual inspection.    
 
 
-
-Turning all non-numeric variables to factors for easier use:   
+Turning all non-numeric variables to factors for easier use:       
 
 ```{R}
 spotify[,!num_cols] = as.data.frame(lapply(spotify[,!num_cols], as.factor))
@@ -136,7 +183,7 @@ ggplot(spotify, aes(x = danceability, colour = explicit)) +
 Thus, the explicit predictor may not be that useful in predicting popularity.
 
 
-*** Cluserting may or may nto be hepful in determining useful grpupings that are associated with higher/lower mean popularities: ***
+*** Clustering may or may not be helpful in determining useful groupings that are associated with higher/lower mean danceability: ***
 
 Running k-means clustering on numerical predictors:
 
@@ -150,7 +197,7 @@ library(ClusterR)
 library(cluster)
 
 set.seed(005408206) # Setting seed
-kmeans.re = kmeans(spotify_numeric, centers = 3, nstart = 10)
+kmeans.re = kmeans(spotify_numeric, centers = 5, nstart = 10)
 kmeans.re
 ```
 
@@ -163,51 +210,6 @@ A quick look at our results above shows that cluster 1 has the highest mean popu
 
 ```{R}
 length(levels(spotify$genre))
-```
-
-```{R}
-anova = aov(danceability~.,data = spotify_numeric)
-summary(anova)
-```
-
-### IGNORE ##
-
-
-```{R,run=FALSE}
-genre = function(str){
-  if(grepl("hip hop",tolower(str))){
-    return("hiphop")
-  }else if(grepl("rap",tolower(str))){
-    return("rap")
-  }else if(grepl("rock",tolower(str))){
-    return("rock")
-  }else if(grepl("pop",tolower(str))){
-    return("pop")
-  }else{
-    return("other")
-  }
-}
-genre = vapply(spotify$top.genre,FUN=genre,FUN.VALUE = character(1))
-spotify$genre = as.factor(genre)
-```
-
-
-# multiple boxplots of artist type:      
-
-```{R,run=FALSE}
-#install.packages("ggplot2")
-library("ggplot2")
-ggplot(spotify, aes(x = genre, y = pop)) +
-  geom_boxplot()
-```
-
-Insights: Boxplots indicate slight, but still noticeable differences across genre type.
-
-# Density Plots separated by artist type:    
-
-```{R,run=FALSE}
-ggplot(spotify, aes(x = pop, colour = genre)) +
-  geom_density()
 ```
 
 
