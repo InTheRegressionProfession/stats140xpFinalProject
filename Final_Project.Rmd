@@ -67,5 +67,5 @@ yhat9 <-predict(mod9,newdata=test2) # Predict with test data
 mse9 <- mean((yhat9 - test2$danceability)^2)
 mse9
 importance(mod9)
-
+```
 
