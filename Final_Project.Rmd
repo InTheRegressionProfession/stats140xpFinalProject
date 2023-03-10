@@ -20,51 +20,52 @@ library(gam)
 library(randomForest)
 library(tree)
 library(MASS)
-songs <- read_csv("songs.csv")
+set.seed(2023)
+songs <- read_csv("songs.csv") # Reading original csv
 songs
-songs2 <- read_csv("songs.csv") 
+songs2 <- read_csv("songs.csv") # Reading modified csv with 
 summary(songs) 
-mod11 <- lm(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs)
+mod11 <- lm(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs) # Basic lm
 summary(mod11)
-pcr.fit = pcr(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs, scale =T, validation ="CV")
+pcr.fit = pcr(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs, scale =T, validation ="CV") #pcr
 validationplot(pcr.fit, val.type ="MSEP")
-mod2 <- lda(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs)
+mod2 <- lda(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = songs) # LDA model
 summary(mod2)
-mod4 <- tree(`danceability`~ .  , data = songs)
-mod5 <- tree(`danceability`~ .  , data = songs2)
+mod4 <- tree(`danceability`~ .  , data = songs) #Tree model with all the data
+mod5 <- tree(`danceability`~ .  , data = songs2) #Tree model with all the data
 summary(mod4)
 summary(mod5)
-yhat1 <-predict(mod4,data=songs)
-yhat2 <-predict(mod4,data=songs2)
+yhat1 <-predict(mod4,newdata=songs) #Predict with tree model
+yhat2 <-predict(mod4,newdata=songs2) # Predict with tree model
 mse1 <- mean((yhat1 - songs$danceability)^2)
 mse1
 mse2 <- mean((yhat1 - songs2$danceability)^2)
 mse2
-test.i<- sample(600,replace = F)
+test.i<- sample(600,replace = F) #Splitting into test and training data
 test2<- songs2[test.i,]
 train2<- songs2[-test.i, ]
 test<- songs[test.i,]
 train<- songs[-test.i, ]
-yhat <-predict(mod4,data=trainb)
-mod6 <- tree(`danceability`~ .  , data = train)
-mod7 <- tree(`danceability`~ .  , data = train2)
+yhat <-predict(mod4,newdata=trainb)
+mod6 <- tree(`danceability`~ .  , data = train) #Tree model with training data
+mod7 <- tree(`danceability`~ .  , data = train2) #Tree model with training data
 summary(mod6)
 summary(mod7)
-yhat3 <-predict(mod6,data=test)
-yhat4 <-predict(mod7,data=test2)
+yhat3 <-predict(mod6,newdata=test) #Predict with test data
+yhat4 <-predict(mod7,newdata=test2) #Predict with test data
 mse3 <- mean((yhat3 - test$danceability)^2)
 mse3
 mse4 <- mean((yhat4 - test2$danceability)^2)
 mse4
-mod8 <- randomForest(`danceability`~ .  , data = songs2)
-yhat8 <-predict(mod8,data=songs2)
+mod8 <- randomForest(`danceability`~ .  , data = songs2) # Random forest with whole data
+yhat8 <-predict(mod8,newdata=songs2) #Predict with whole data
 mse8 <- mean((yhat8 - songs2$danceability)^2)
 mse8
 importance(mod8)
-mod9 <- randomForest(`danceability`~ .  , data = train2)
-yhat9 <-predict(mod9,data=test2)
+mod9 <- randomForest(`danceability`~ .  , data = train2)  # Random forest with train data
+yhat9 <-predict(mod9,newdata=test2) # Predict with test data
 mse9 <- mean((yhat9 - test2$danceability)^2)
 mse9
-importance(mod9)
+mportance(mod9)
 
 
