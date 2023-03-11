@@ -67,5 +67,17 @@ yhat9 <-predict(mod9,newdata=test2) # Predict with test data
 mse9 <- mean((yhat9 - test2$danceability)^2)
 mse9
 importance(mod9)
+genre <- read.table("genre_new.txt")
+songs$genre <- unlist(genre)
+test<- songs[test.i,]
+train<- songs[-test.i, ]
+mod10 <- tree(`danceability`~ .  , data = train)
+yhat10 <-predict(mod10,newdata=test)
+mse10 <- mean((yhat10 - test2$danceability)^2)
+mse10
+mod11 <- randomForest(`danceability`~ .  , data = train2)
+yhat11 <-predict(mod11,newdata=test)
+mse11 <- mean((yhat11 - test2$danceability)^2)
+mse11
 ```
 
