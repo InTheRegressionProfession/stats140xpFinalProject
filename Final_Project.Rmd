@@ -1,0 +1,90 @@
+---
+ytitle: "Final_Project"
+author: "Arnav Talukder, UID:205303779"
+date: "2023-03-07"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(ISLR)
+library(GGally)
+library(class)
+library(glmnet)
+library(pls)
+library(leaps)
+library(splines)
+library(gam)
+library(randomForest)
+library(tree)
+library(MASS)
+library(sjPlot) #Loading libraries
+set.seed(2023) #Setting seed for reproducibility
+songs <- read_csv("songs.csv")
+songs #Loading and viewing original data
+songs2 <- read_csv("songs.csv") #Loading and viewing data with genre variable as  a boolean
+summary(songs) 
+test.i<- sample(600,replace = F)
+test2<- songs2[test.i,]
+train2<- songs2[-test.i, ]
+test<- songs[test.i,]
+train<- songs[-test.i, ] #Splitting into test and training data 
+mod1 <- lm(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = train) # Simple linear regression
+summary(mod1)
+tab_model(mod1)
+yhatlm <-predict(mod1,newdata=test)
+mselm <- mean((yhatlm - test$danceability)^2)
+mselm
+pcr.fit = pcr(`danceability`~`duration_ms`+`popularity`+ `energy`+ `key` + `loudness` + `mode` + `speechiness`+ `acousticness`+    `instrumentalness` + `liveness` + `valence` , data = train, scale =T, validation ="CV") # PCR Model
+validationplot(pcr.fit, val.type ="MSEP")
+yhatpcr <-predict(pcr.fit,newdata=test)
+msepcr <- mean((yhatpcr - test$danceability)^2)
+msepcr
+mod4 <- tree(`danceability`~ .  , data = train) # Tree models
+mod5 <- tree(`danceability`~ .  , data = train2)
+summary(mod4)
+summary(mod5)
+yhat1 <-predict(mod4,newdata=test)
+yhat2 <-predict(mod4,newdata=test2)
+mse1 <- mean((yhat1 - test$danceability)^2)
+mse1
+mse2 <- mean((yhat2 - test2$danceability)^2)
+mse2
+mod8 <- randomForest(`danceability`~ .  , data = train) #Random forest models
+yhat8 <-predict(mod8,newdata=test2)
+mse8 <- mean((yhat8 - test$danceability)^2)
+mse8
+importance(mod8)
+mod9 <- randomForest(`danceability`~ .  , mtry =5, ntree =1500, data = train2)
+yhat9 <-predict(mod9,newdata=test2)
+mse9 <- mean((yhat9 - test2$danceability)^2)
+mse9
+summary(mod9)
+mod9
+```
+
+The above analysis was done with the original data set and the one with gender adjusted as a boolean.
+
+```{r}
+genre <- read.table("genre_new.txt") # Loading new genre variable 
+songs$genre <- unlist(genre)
+test3<- songs[test.i,]
+train3<- songs[-test.i, ]
+mod10 <- tree(`danceability`~ .  , data = train3) #Tree model 
+yhat10 <-predict(mod10,newdata=test3)
+mse10 <- mean((yhat10 - test3$danceability)^2)
+mse10
+mod11 <- randomForest(`danceability`~ .  ,mtry =5, ntree =1500, data = train3)
+yhat11 <-predict(mod11,newdata=test3)
+mse11 <- mean((yhat11 - test3$danceability)^2)
+mse11
+mod11
+kable(importance(mod11))
+MSE <- c(mselm, msepcr, mse1, mse2, mse8, mse9, mse10, mse11)
+MSE
+Model <- c("Simple linear regression", "PCR Model", "Tree with Data 1", "Tree Model with Data 2", "Random Forest with Data 1", "Random Forest with Data 2", "Tree with Data 3", "Random Forest with Data 3")
+kable(cbind(Model, MSE))
+```
