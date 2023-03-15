@@ -77,6 +77,9 @@ mod10 <- tree(`danceability`~ .  , data = train3) #Tree model
 yhat10 <-predict(mod10,newdata=test3)
 mse10 <- mean((yhat10 - test3$danceability)^2)
 mse10
+mod10.prune <- prune.tree(mod10, best = 8)
+plot(mod10.prune)
+text(mod10.prune)
 mod11 <- randomForest(`danceability`~ .  ,mtry =5, ntree =1500, data = train3)
 yhat11 <-predict(mod11,newdata=test3)
 mse11 <- mean((yhat11 - test3$danceability)^2)
