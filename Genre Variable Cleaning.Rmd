@@ -1,0 +1,111 @@
+---
+title: "Consolidating Genre Variable"
+author: "team 6"
+date: "3/8/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This rmd contains the process used to clean the genre varaible and the anova used for the analysis
+
+```{r packages, echo=FALSE}
+library(broom)
+library(knitr)
+library(ggplot2)
+```
+
+
+```{r}
+spotify <- read.csv("songs_normalize.csv")
+
+genre <- as.factor(spotify$genre)
+
+head(genre)
+
+table(genre)
+```
+
+
+## Decreasing number of levels in genre 
+
+Approach: Decrease the number of genres by categorizing specific genres into more broad ones 
+
+Reasoning: Having less levels might make the genre variable more helpful
+
+The table below has the most common genres:
+
+```{r}
+table(genre)[table(genre) > 50]
+```
+
+I grouped genre together based on key words in the genre names. I placed pop and hip hop at the bottom, as these two key words were in most of the genre levels.
+
+hiphop: hip hop, R&B, 
+electronic: Dance, electronic
+rock: metal, rock 
+country: country
+latin: latin
+pop: pop
+other: reamining songs
+
+```{r}
+genre_new <- genre
+
+rock_genre <- which(grepl(".*rock.*|.*metal.*", genre))
+
+elec_genre <- which(grepl(".*Dance.*|.*Electronic.*", genre) & !grepl(".*rock.*|.*metal.*", genre))
+
+hiphop_genre <- which( grepl(".*R\\&B.*|.*hip hop.*", genre) & !grepl(".*rock.*|.*metal.*|.*Dance.*|.*Electronic.*", genre) )
+
+
+latin_genre <- which(grepl(".*latin.*", genre) & !grepl(".*rock.*|.*metal.*|.*Dance.*|.*Electronic.*|.*R\\&B.*|.*hip hop.*", genre))
+
+pop_genre <- which(grepl(".*pop.*", genre) & !grepl(".*rock.*|.*metal.*|.*Dance.*|.*Electronic.*|.*R\\&B.*|.*hip hop.*|.*latin.*", genre))
+
+other_genre <- which(!grepl(".*rock.*|.*metal.*|.*Dance.*|.*Electronic.*|.*R\\&B.*|.*hip hop.*|.*latin.*|.*pop.*", genre))
+
+length(rock_genre) + length(elec_genre) + length(hiphop_genre) + length(latin_genre) + length(pop_genre) + length(other_genre)
+```
+
+Now we create the new column with less levels
+
+```{r}
+
+levels(genre_new) <- c(levels(genre_new), "other", "electric")
+
+genre_new[rock_genre] <- "rock"
+genre_new[elec_genre] <- "electric"
+genre_new[hiphop_genre] <- "hip hop"
+genre_new[latin_genre] <- "latin"
+genre_new[pop_genre] <- "pop"
+genre_new[other_genre] <- "other"
+
+genre_new <- droplevels(genre_new)
+table(genre_new)
+
+write.csv(data.frame(genre_new), file = "genre_new", row.names = F)
+
+spotify$NewGenre <- genre_new
+```
+
+Here I run an Anova to find whether the genre of a song affects the danceability of the song
+
+```{r}
+dance_anova <- aov(danceability ~ NewGenre, data = spotify)
+summary(dance_anova)
+
+tapply(spotify$danceability, spotify$NewGenre, mean)
+
+ggplot(spotify,aes(NewGenre,danceability, fill = NewGenre))+geom_boxplot()+ labs(title = "Danceability by Genre",
+       x = "Genre",
+       y = "Danceability")
+
+```
+
+|term      |   df|     sumsq|    meansq| statistic|p.value        |
+|:---------|----:|---------:|---------:|---------:|:--------------|
+|NewGenre  |    5|  5.106422| 1.0212844|  59.35865|< 2.220446e-16 |
+|Residuals | 1994| 34.307400| 0.0172053|        NA|NA             |
